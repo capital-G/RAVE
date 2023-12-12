@@ -191,7 +191,7 @@ def get_rave_receptive_field(model, n_channels=1):
         x = torch.randn(1, model.n_channels, N, requires_grad=True, device=device)
 
         z = model.encode(x)
-        z = model.encoder.reparametrize(z)[0]
+        z = model.encoder.module.reparametrize(z)[0]
         y = model.decode(z)
 
         y[0, 0, N // 2].backward()

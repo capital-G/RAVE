@@ -184,8 +184,8 @@ class RAVE(pl.LightningModule):
         assert weights is not None, "RAVE model requires either weights or loss_weights (depreciated) keyword"
 
         # setup model
-        self.encoder = encoder(n_channels=n_channels)
-        self.decoder = decoder(n_channels=n_channels)
+        self.encoder = nn.DataParallel(encoder(n_channels=n_channels))
+        self.decoder = nn.DataParallel(decoder(n_channels=n_channels))
         self.discriminator = discriminator(n_channels=n_channels)
 
         self.audio_distance = audio_distance()
@@ -266,7 +266,7 @@ class RAVE(pl.LightningModule):
 
     def forward(self, x):
         z = self.encode(x, return_mb=False)
-        z = self.encoder.reparametrize(z)[0]
+        z = self.encoder.module.reparametrize(z)[0]
         return self.decode(z)
 
     def on_train_batch_end(self, outputs, batch, batch_idx) -> None:
@@ -292,14 +292,14 @@ class RAVE(pl.LightningModule):
         x_raw.requires_grad = True
 
         batch_size = x_raw.shape[:-2]
-        self.encoder.set_warmed_up(self.warmed_up)
-        self.decoder.set_warmed_up(self.warmed_up)
+        self.encoder.module.set_warmed_up(self.warmed_up)
+        self.decoder.module.set_warmed_up(self.warmed_up)
 
         # ENCODE INPUT
         # get multiband in case
         z, x_multiband = self.encode(x_raw, return_mb=True)
 
-        z, reg = self.encoder.reparametrize(z)[:2]
+        z, reg = self.encoder.module.reparametrize(z)[:2]
         p.tick('encode')
 
         # DECODE LATENT
@@ -431,7 +431,7 @@ class RAVE(pl.LightningModule):
         else:
             mean = None
 
-        z = self.encoder.reparametrize(z)[0]
+        z = self.encoder.module.reparametrize(z)[0]
         y = self.decode(z)
 
         distance = self.audio_distance(x, y)
